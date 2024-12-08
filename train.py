@@ -24,7 +24,7 @@ def main(CFG, data_path, batch_size, with_val=True):
     # Load train dataset
     train_dataset = VesselDataset(data_path, mode="training")
     train_loader = DataLoader(
-        train_dataset, batch_size, shuffle=True, num_workers=16, pin_memory=True, drop_last=True
+        train_dataset, batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True
     )
 
     # Load validation dataset if required
@@ -32,7 +32,7 @@ def main(CFG, data_path, batch_size, with_val=True):
     if with_val:
         val_dataset = VesselDataset(data_path, mode="validation")
         val_loader = DataLoader(
-            val_dataset, batch_size, shuffle=False, num_workers=16, pin_memory=True, drop_last=False
+            val_dataset, batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False
         )
 
     # Logging dataset stats

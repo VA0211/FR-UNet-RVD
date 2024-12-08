@@ -19,7 +19,8 @@ class Trainer:
     def __init__(self, model, CFG=None, loss=None, train_loader=None, val_loader=None):
         self.CFG = CFG
         if self.CFG.amp is True:
-            self.scaler = torch.cuda.amp.GradScaler(enabled=True)
+            # self.scaler = torch.cuda.amp.GradScaler(enabled=True)
+            self.scaler = torch.amp.GradScaler('cuda', enabled=True)
         self.loss = loss
         self.model = nn.DataParallel(model.cuda())
         self.train_loader = train_loader
