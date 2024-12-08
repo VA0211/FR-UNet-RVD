@@ -1,7 +1,8 @@
 import argparse
 from bunch import Bunch
 from loguru import logger
-from ruamel.yaml import safe_load
+import ruamel
+# from ruamel.yaml import safe_load
 from torch.utils.data import DataLoader
 import models
 from dataset import VesselDataset
@@ -71,7 +72,9 @@ if __name__ == '__main__':
 
     # Load configuration from YAML file
     with open('/kaggle/working/FR-UNet-RVD/config.yaml', encoding='utf-8') as file:
-        CFG = Bunch(safe_load(file))
+        # CFG = Bunch(safe_load(file))
+        yaml = ruamel.yaml.YAML(typ='safe', pure=True)
+        CFG = Bunch(yaml.load(file))
 
     # Call main function
     main(CFG, args.dataset_path, args.batch_size, args.val)

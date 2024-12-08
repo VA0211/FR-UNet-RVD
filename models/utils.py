@@ -1,6 +1,6 @@
 
 from torch import nn
-from timm.models.layers import trunc_normal_
+from timm.layers import trunc_normal_
 
 class InitWeights_He(object):
     def __init__(self, neg_slope=1e-2):

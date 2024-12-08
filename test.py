@@ -1,7 +1,8 @@
 import argparse
 import torch
 from bunch import Bunch
-from ruamel.yaml import safe_load
+import ruamel
+# from ruamel.yaml import safe_load
 from torch.utils.data import DataLoader
 import models
 from dataset import VesselDataset
@@ -31,6 +32,10 @@ if __name__ == '__main__':
     parser.add_argument("--show", help="save predict image",
                         required=False, default=False, action="store_true")
     args = parser.parse_args()
-    with open("config.yaml", encoding="utf-8") as file:
-        CFG = Bunch(safe_load(file))
+    with open("/kaggle/working/FR-UNet-RVD/config.yaml", encoding="utf-8") as file:
+        # CFG = Bunch(safe_load(file))
+        yaml = ruamel.yaml.YAML(typ='safe', pure=True)
+        CFG = Bunch(yaml.load(file))
     main(args.dataset_path, args.wetght_path, CFG, args.show)
+
+  
