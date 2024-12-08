@@ -1,8 +1,8 @@
 import os
-import pickle
+from PIL import Image
 import torch
 from torch.utils.data import Dataset
-from torchvision.transforms import Compose, RandomHorizontalFlip, RandomVerticalFlip
+from torchvision.transforms import Compose, RandomHorizontalFlip, RandomVerticalFlip, ToTensor
 from utils.helpers import Fix_RandomRotation
 
 
@@ -11,7 +11,7 @@ class VesselDataset(Dataset):
         """
         Custom Dataset for Vessel Segmentation.
         :param data_path: Root path to the dataset (Spatial directory).
-        :param mode: Mode of the dataset (training, validation, or testing).
+        :param mode: Mode of the dataset (train, validation, or test).
         """
         self.mode = mode
         self.img_path = os.path.join(data_path, "images", mode)
@@ -51,23 +51,14 @@ class VesselDataset(Dataset):
 
         return img, mask
 
-    # def _load_image(self, file_path):
-    #     """
-    #     Load an image or mask as a PyTorch tensor.
-    #     :param file_path: Path to the image/mask file.
-    #     :return: Tensor representation of the image/mask.
-    #     """
-    #     with open(file_path, mode='rb') as file:
-    #         data = pickle.load(file)
-    #     return torch.from_numpy(data).float()
-
-    def _select_img(self, file_list):
-        img_list = []
-        for file in file_list:
-            if file[:3] == "img":
-                img_list.append(file)
-
-        return img_list
+    def _load_image(self, file_path):
+        """
+        Load an image or mask as a PyTorch tensor.
+        :param file_path: Path to the image/mask file.
+        :return: Tensor representation of the image/mask.
+        """
+        image = Image.open(file_path)
+        return ToTensor()(image)
 
     def __len__(self):
         """
