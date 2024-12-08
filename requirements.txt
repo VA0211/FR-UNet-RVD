@@ -30,6 +30,6 @@ timm
 torch
 torchstat
 torchvision
-tqdm1
+tqdm
 ttach
 yacs
