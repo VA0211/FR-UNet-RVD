@@ -10,7 +10,7 @@ from utils import losses
 from utils.helpers import get_instance, seed_torch
 
 
-def main(CFG, data_path, batch_size, with_val=False):
+def main(CFG, data_path, batch_size, with_val=True):
     """
     Main training function.
     :param CFG: Configuration object from config.yaml.
@@ -66,11 +66,11 @@ if __name__ == '__main__':
     parser.add_argument('-bs', '--batch_size', default=512, type=int,
                         help='Batch size for training and validation')
     parser.add_argument("--val", help="Include validation during training",
-                        required=False, default=False, action="store_true")
+                        required=False, default=True, action="store_true")
     args = parser.parse_args()
 
     # Load configuration from YAML file
-    with open('config.yaml', encoding='utf-8') as file:
+    with open('/kaggle/working/FR-UNet-RVD/config.yaml', encoding='utf-8') as file:
         CFG = Bunch(safe_load(file))
 
     # Call main function
