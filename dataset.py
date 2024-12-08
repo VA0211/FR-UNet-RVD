@@ -51,15 +51,23 @@ class VesselDataset(Dataset):
 
         return img, mask
 
-    def _load_image(self, file_path):
-        """
-        Load an image or mask as a PyTorch tensor.
-        :param file_path: Path to the image/mask file.
-        :return: Tensor representation of the image/mask.
-        """
-        with open(file_path, mode='rb') as file:
-            data = pickle.load(file)
-        return torch.from_numpy(data).float()
+    # def _load_image(self, file_path):
+    #     """
+    #     Load an image or mask as a PyTorch tensor.
+    #     :param file_path: Path to the image/mask file.
+    #     :return: Tensor representation of the image/mask.
+    #     """
+    #     with open(file_path, mode='rb') as file:
+    #         data = pickle.load(file)
+    #     return torch.from_numpy(data).float()
+
+    def _select_img(self, file_list):
+        img_list = []
+        for file in file_list:
+            if file[:3] == "img":
+                img_list.append(file)
+
+        return img_list
 
     def __len__(self):
         """
