@@ -4,50 +4,74 @@ from loguru import logger
 from ruamel.yaml import safe_load
 from torch.utils.data import DataLoader
 import models
-from dataset import vessel_dataset
+from dataset import VesselDataset
 from trainer import Trainer
 from utils import losses
 from utils.helpers import get_instance, seed_torch
 
 
 def main(CFG, data_path, batch_size, with_val=False):
+    """
+    Main training function.
+    :param CFG: Configuration object from config.yaml.
+    :param data_path: Path to the dataset (Spatial directory).
+    :param batch_size: Batch size for training and validation.
+    :param with_val: Whether to include validation during training.
+    """
     seed_torch()
-    if with_val:
-        train_dataset = vessel_dataset(data_path, mode="training", split=0.9)
-        val_dataset = vessel_dataset(
-            data_path, mode="training", split=0.9, is_val=True)
-        val_loader = DataLoader(
-            val_dataset, batch_size, shuffle=False, num_workers=16, pin_memory=True, drop_last=False)
-    else:
-        train_dataset = vessel_dataset(data_path, mode="training")
-    train_loader = DataLoader(
-        train_dataset, batch_size, shuffle=True, num_workers=16, pin_memory=True, drop_last=True)
 
-    logger.info('The patch number of train is %d' % len(train_dataset))
+    # Load train dataset
+    train_dataset = VesselDataset(data_path, mode="training")
+    train_loader = DataLoader(
+        train_dataset, batch_size, shuffle=True, num_workers=16, pin_memory=True, drop_last=True
+    )
+
+    # Load validation dataset if required
+    val_loader = None
+    if with_val:
+        val_dataset = VesselDataset(data_path, mode="validation")
+        val_loader = DataLoader(
+            val_dataset, batch_size, shuffle=False, num_workers=16, pin_memory=True, drop_last=False
+        )
+
+    # Logging dataset stats
+    logger.info(f'Total training samples: {len(train_dataset)}')
+    if with_val:
+        logger.info(f'Total validation samples: {len(val_dataset)}')
+
+    # Initialize model
     model = get_instance(models, 'model', CFG)
     logger.info(f'\n{model}\n')
+
+    # Initialize loss
     loss = get_instance(losses, 'loss', CFG)
+
+    # Initialize trainer
     trainer = Trainer(
         model=model,
         loss=loss,
         CFG=CFG,
         train_loader=train_loader,
-        val_loader=val_loader if with_val else None
+        val_loader=val_loader,
     )
 
+    # Start training
     trainer.train()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-dp', '--dataset_path', default="/home/lwt/data_pro/vessel/DRIVE", type=str,
-                        help='the path of dataset')
-    parser.add_argument('-bs', '--batch_size', default=512,
-                        help='batch_size for trianing and validation')
-    parser.add_argument("--val", help="split training data for validation",
+    parser.add_argument('-dp', '--dataset_path', default="/home/lwt/data_pro/vessel/Spatial", type=str,
+                        help='Path to the dataset (Spatial directory)')
+    parser.add_argument('-bs', '--batch_size', default=512, type=int,
+                        help='Batch size for training and validation')
+    parser.add_argument("--val", help="Include validation during training",
                         required=False, default=False, action="store_true")
     args = parser.parse_args()
 
+    # Load configuration from YAML file
     with open('config.yaml', encoding='utf-8') as file:
         CFG = Bunch(safe_load(file))
+
+    # Call main function
     main(CFG, args.dataset_path, args.batch_size, args.val)

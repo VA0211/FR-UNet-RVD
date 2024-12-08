@@ -6,50 +6,63 @@ from torchvision.transforms import Compose, RandomHorizontalFlip, RandomVertical
 from utils.helpers import Fix_RandomRotation
 
 
-class vessel_dataset(Dataset):
-    def __init__(self, path, mode, is_val=False, split=None):
-
+class VesselDataset(Dataset):
+    def __init__(self, data_path, mode):
+        """
+        Custom Dataset for Vessel Segmentation.
+        :param data_path: Root path to the dataset (Spatial directory).
+        :param mode: Mode of the dataset (training, validation, or testing).
+        """
         self.mode = mode
-        self.is_val = is_val
-        self.data_path = os.path.join(path, f"{mode}_pro")
-        self.data_file = os.listdir(self.data_path)
-        self.img_file = self._select_img(self.data_file)
-        if split is not None and mode == "training":
-            assert split > 0 and split < 1
-            if not is_val:
-                self.img_file = self.img_file[:int(split*len(self.img_file))]
-            else:
-                self.img_file = self.img_file[int(split*len(self.img_file)):]
+        self.img_path = os.path.join(data_path, "images", mode)
+        self.mask_path = os.path.join(data_path, "masks", mode)
+
+        # List image and mask files
+        self.img_files = sorted(os.listdir(self.img_path))
+        self.mask_files = sorted(os.listdir(self.mask_path))
+
+        # Define data augmentation/transforms for training
         self.transforms = Compose([
             RandomHorizontalFlip(p=0.5),
             RandomVerticalFlip(p=0.5),
             Fix_RandomRotation(),
-        ])
+        ]) if mode == "train" else None
 
     def __getitem__(self, idx):
-        img_file = self.img_file[idx]
-        with open(file=os.path.join(self.data_path, img_file), mode='rb') as file:
-            img = torch.from_numpy(pickle.load(file)).float()
-        gt_file = "gt" + img_file[3:]
-        with open(file=os.path.join(self.data_path, gt_file), mode='rb') as file:
-            gt = torch.from_numpy(pickle.load(file)).float()
+        """
+        Retrieve an image and its corresponding ground truth mask.
+        :param idx: Index of the data item.
+        :return: Tuple of (image, mask), both as tensors.
+        """
+        # Load image and mask
+        img_file = self.img_files[idx]
+        mask_file = self.mask_files[idx]
 
-        if self.mode == "training" and not self.is_val:
-            seed = torch.seed()
+        img = self._load_image(os.path.join(self.img_path, img_file))
+        mask = self._load_image(os.path.join(self.mask_path, mask_file))
+
+        # Apply data augmentation if in training mode
+        if self.mode == "train" and self.transforms is not None:
+            seed = torch.seed()  # Ensures consistent transforms for image and mask
             torch.manual_seed(seed)
             img = self.transforms(img)
             torch.manual_seed(seed)
-            gt = self.transforms(gt)
+            mask = self.transforms(mask)
 
-        return img, gt
+        return img, mask
 
-    def _select_img(self, file_list):
-        img_list = []
-        for file in file_list:
-            if file[:3] == "img":
-                img_list.append(file)
-
-        return img_list
+    def _load_image(self, file_path):
+        """
+        Load an image or mask as a PyTorch tensor.
+        :param file_path: Path to the image/mask file.
+        :return: Tensor representation of the image/mask.
+        """
+        with open(file_path, mode='rb') as file:
+            data = pickle.load(file)
+        return torch.from_numpy(data).float()
 
     def __len__(self):
-        return len(self.img_file)
+        """
+        Total number of samples in the dataset.
+        """
+        return len(self.img_files)

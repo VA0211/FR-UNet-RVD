@@ -3,202 +3,122 @@ import argparse
 import pickle
 import cv2
 import numpy as np
-import torch.nn as nn
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from PIL import Image
-from ruamel.yaml import safe_load
 from torchvision.transforms import Grayscale, Normalize, ToTensor
 from utils.helpers import dir_exists, remove_files
 
 
-def data_process(data_path, name, patch_size, stride, mode):
+def data_process(data_path, patch_size, stride, mode):
+    """
+    Processes images and binary masks into patches or prepares them for testing.
+    :param data_path: Path to the dataset (should contain train/val/test directories).
+    :param patch_size: The size of the image patch for partitioning.
+    :param stride: Stride size for partitioning.
+    :param mode: Mode of operation ('training', 'validation', or 'testing').
+    """
     save_path = os.path.join(data_path, f"{mode}_pro")
     dir_exists(save_path)
     remove_files(save_path)
-    if name == "DRIVE":
-        img_path = os.path.join(data_path, mode, "images")
-        gt_path = os.path.join(data_path, mode, "1st_manual")
-        file_list = list(sorted(os.listdir(img_path)))
-    elif name == "CHASEDB1":
-        file_list = list(sorted(os.listdir(data_path)))
-    elif name == "STARE":
-        img_path = os.path.join(data_path, "stare-images")
-        gt_path = os.path.join(data_path, "labels-ah")
-        file_list = list(sorted(os.listdir(img_path)))
-    elif name == "DCA1":
-        data_path = os.path.join(data_path, "Database_134_Angiograms")
-        file_list = list(sorted(os.listdir(data_path)))
-    elif name == "CHUAC":
-        img_path = os.path.join(data_path, "Original")
-        gt_path = os.path.join(data_path, "Photoshop")
-        file_list = list(sorted(os.listdir(img_path)))
+
+    img_dir = os.path.join(data_path, "images", mode)
+    mask_dir = os.path.join(data_path, "masks", mode)
+
+    # List image and mask files
+    img_files = sorted(os.listdir(img_dir))
+    mask_files = sorted(os.listdir(mask_dir))
+
     img_list = []
     gt_list = []
-    for i, file in enumerate(file_list):
-        if name == "DRIVE":
-            img = Image.open(os.path.join(img_path, file))
-            gt = Image.open(os.path.join(gt_path, file[0:2] + "_manual1.gif"))
-            img = Grayscale(1)(img)
-            img_list.append(ToTensor()(img))
-            gt_list.append(ToTensor()(gt))
 
-        elif name == "CHASEDB1":
-            if len(file) == 13:
-                if mode == "training" and int(file[6:8]) <= 10:
-                    img = Image.open(os.path.join(data_path, file))
-                    gt = Image.open(os.path.join(
-                        data_path, file[0:9] + '_1stHO.png'))
-                    img = Grayscale(1)(img)
-                    img_list.append(ToTensor()(img))
-                    gt_list.append(ToTensor()(gt))
-                elif mode == "test" and int(file[6:8]) > 10:
-                    img = Image.open(os.path.join(data_path, file))
-                    gt = Image.open(os.path.join(
-                        data_path, file[0:9] + '_1stHO.png'))
-                    img = Grayscale(1)(img)
-                    img_list.append(ToTensor()(img))
-                    gt_list.append(ToTensor()(gt))
-        elif name == "DCA1":
-            if len(file) <= 7:
-                if mode == "training" and int(file[:-4]) <= 100:
-                    img = cv2.imread(os.path.join(data_path, file), 0)
-                    gt = cv2.imread(os.path.join(
-                        data_path, file[:-4] + '_gt.pgm'), 0)
-                    gt = np.where(gt >= 100, 255, 0).astype(np.uint8)
-                    img_list.append(ToTensor()(img))
-                    gt_list.append(ToTensor()(gt))
-                elif mode == "test" and int(file[:-4]) > 100:
-                    img = cv2.imread(os.path.join(data_path, file), 0)
-                    gt = cv2.imread(os.path.join(
-                        data_path, file[:-4] + '_gt.pgm'), 0)
-                    gt = np.where(gt >= 100, 255, 0).astype(np.uint8)
-                    img_list.append(ToTensor()(img))
-                    gt_list.append(ToTensor()(gt))
-        elif name == "CHUAC":
-            if mode == "training" and int(file[:-4]) <= 20:
-                img = cv2.imread(os.path.join(img_path, file), 0)
-                if int(file[:-4]) <= 17 and int(file[:-4]) >= 11:
-                    tail = "PNG"
-                else:
-                    tail = "png"
-                gt = cv2.imread(os.path.join(
-                    gt_path, "angio"+file[:-4] + "ok."+tail), 0)
-                gt = np.where(gt >= 100, 255, 0).astype(np.uint8)
-                img = cv2.resize(
-                    img, (512, 512), interpolation=cv2.INTER_LINEAR)
-                cv2.imwrite(f"save_picture/{i}img.png", img)
-                cv2.imwrite(f"save_picture/{i}gt.png", gt)
-                img_list.append(ToTensor()(img))
-                gt_list.append(ToTensor()(gt))
-            elif mode == "test" and int(file[:-4]) > 20:
-                img = cv2.imread(os.path.join(img_path, file), 0)
-                gt = cv2.imread(os.path.join(
-                    gt_path, "angio"+file[:-4] + "ok.png"), 0)
-                gt = np.where(gt >= 100, 255, 0).astype(np.uint8)
-                img = cv2.resize(
-                    img, (512, 512), interpolation=cv2.INTER_LINEAR)
-                cv2.imwrite(f"save_picture/{i}img.png", img)
-                cv2.imwrite(f"save_picture/{i}gt.png", gt)
-                img_list.append(ToTensor()(img))
-                gt_list.append(ToTensor()(gt))
-        elif name == "STARE":
-            if not file.endswith("gz"):
-                img = Image.open(os.path.join(img_path, file))
-                gt = Image.open(os.path.join(gt_path, file[0:6] + '.ah.ppm'))
-                cv2.imwrite(f"save_picture/{i}img.png", np.array(img))
-                cv2.imwrite(f"save_picture/{i}gt.png", np.array(gt))
-                img = Grayscale(1)(img)
-                img_list.append(ToTensor()(img))
-                gt_list.append(ToTensor()(gt))
+    # Load images and masks
+    for img_file, mask_file in zip(img_files, mask_files):
+        img = Image.open(os.path.join(img_dir, img_file))
+        mask = Image.open(os.path.join(mask_dir, mask_file))
+
+        # Convert images and masks to grayscale (1 channel)
+        img = Grayscale(1)(img)
+        mask = Grayscale(1)(mask)
+
+        img_list.append(ToTensor()(img))
+        gt_list.append(ToTensor()(mask))
+
+    # Normalize images
     img_list = normalization(img_list)
-    if mode == "training":
-        img_patch = get_patch(img_list, patch_size, stride)
-        gt_patch = get_patch(gt_list, patch_size, stride)
-        save_patch(img_patch, save_path, "img_patch", name)
-        save_patch(gt_patch, save_path, "gt_patch", name)
-    elif mode == "test":
-        if name != "CHUAC":
-            img_list = get_square(img_list, name)
-            gt_list = get_square(gt_list, name)
-        save_each_image(img_list, save_path, "img", name)
-        save_each_image(gt_list, save_path, "gt", name)
 
+    # Generate patches or save full-size images
+    if mode == "training" or mode == "validation":
+        img_patches = get_patch(img_list, patch_size, stride)
+        mask_patches = get_patch(gt_list, patch_size, stride)
 
-def get_square(img_list, name):
-    img_s = []
-    if name == "DRIVE":
-        shape = 592
-    elif name == "CHASEDB1":
-        shape = 1008
-    elif name == "DCA1":
-        shape = 320
-    _, h, w = img_list[0].shape
-    pad = nn.ConstantPad2d((0, shape-w, 0, shape-h), 0)
-    for i in range(len(img_list)):
-        img = pad(img_list[i])
-        img_s.append(img)
-
-    return img_s
+        save_patch(img_patches, save_path, "img_patch")
+        save_patch(mask_patches, save_path, "mask_patch")
+    elif mode == "testing":
+        save_each_image(img_list, save_path, "img")
+        save_each_image(gt_list, save_path, "mask")
 
 
 def get_patch(imgs_list, patch_size, stride):
-    image_list = []
+    """
+    Generate patches from images.
+    :param imgs_list: List of images (tensor format).
+    :param patch_size: Size of the patches.
+    :param stride: Stride for generating patches.
+    :return: List of image patches.
+    """
+    patches = []
     _, h, w = imgs_list[0].shape
     pad_h = stride - (h - patch_size) % stride
     pad_w = stride - (w - patch_size) % stride
-    for sub1 in imgs_list:
-        image = F.pad(sub1, (0, pad_w, 0, pad_h), "constant", 0)
-        image = image.unfold(1, patch_size, stride).unfold(
-            2, patch_size, stride).permute(1, 2, 0, 3, 4)
-        image = image.contiguous().view(
-            image.shape[0] * image.shape[1], image.shape[2], patch_size, patch_size)
-        for sub2 in image:
-            image_list.append(sub2)
-    return image_list
+
+    for img in imgs_list:
+        img = F.pad(img, (0, pad_w, 0, pad_h), "constant", 0)
+        img = img.unfold(1, patch_size, stride).unfold(2, patch_size, stride)
+        img = img.permute(1, 2, 0, 3, 4).contiguous().view(-1, 1, patch_size, patch_size)
+        patches.extend(img)
+
+    return patches
 
 
-def save_patch(imgs_list, path, type, name):
-    for i, sub in enumerate(imgs_list):
-        with open(file=os.path.join(path, f'{type}_{i}.pkl'), mode='wb') as file:
-            pickle.dump(np.array(sub), file)
-            print(f'save {name} {type} : {type}_{i}.pkl')
+def save_patch(imgs_list, path, file_prefix):
+    """
+    Save image patches to disk as pickle files.
+    """
+    for i, img in enumerate(imgs_list):
+        with open(os.path.join(path, f"{file_prefix}_{i}.pkl"), "wb") as f:
+            pickle.dump(img.numpy(), f)
+        print(f"Saved: {file_prefix}_{i}.pkl")
 
 
-def save_each_image(imgs_list, path, type, name):
-    for i, sub in enumerate(imgs_list):
-        with open(file=os.path.join(path, f'{type}_{i}.pkl'), mode='wb') as file:
-            pickle.dump(np.array(sub), file)
-            print(f'save {name} {type} : {type}_{i}.pkl')
+def save_each_image(imgs_list, path, file_prefix):
+    """
+    Save each image as a pickle file.
+    """
+    for i, img in enumerate(imgs_list):
+        with open(os.path.join(path, f"{file_prefix}_{i}.pkl"), "wb") as f:
+            pickle.dump(img.numpy(), f)
+        print(f"Saved: {file_prefix}_{i}.pkl")
 
 
 def normalization(imgs_list):
+    """
+    Normalize a list of images using their mean and standard deviation.
+    """
     imgs = torch.cat(imgs_list, dim=0)
-    mean = torch.mean(imgs)
-    std = torch.std(imgs)
-    normal_list = []
-    for i in imgs_list:
-        n = Normalize([mean], [std])(i)
-        n = (n - torch.min(n)) / (torch.max(n) - torch.min(n))
-        normal_list.append(n)
-    return normal_list
+    mean = imgs.mean()
+    std = imgs.std()
+    normalized_list = [(Normalize([mean], [std])(img) - img.min()) / (img.max() - img.min()) for img in imgs_list]
+    return normalized_list
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-dp', '--dataset_path', default="datasets/DRIVE", type=str,
-                        help='the path of dataset',required=True)
-    parser.add_argument('-dn', '--dataset_name', default="DRIVE", type=str,
-                        help='the name of dataset',choices=['DRIVE','CHASEDB1','STARE','CHUAC','DCA1'],required=True)
-    parser.add_argument('-ps', '--patch_size', default=48,
-                        help='the size of patch for image partition')
-    parser.add_argument('-s', '--stride', default=6,
-                        help='the stride of image partition')
+    parser.add_argument("-dp", "--data_path", type=str, required=True, help="Path to dataset (with train/val/test structure).")
+    parser.add_argument("-ps", "--patch_size", type=int, default=48, help="Patch size for image partitioning.")
+    parser.add_argument("-s", "--stride", type=int, default=6, help="Stride for image partitioning.")
+    parser.add_argument("-m", "--mode", type=str, required=True, choices=["training", "validation", "testing"], help="Mode: train, val, or test.")
     args = parser.parse_args()
-    with open('config.yaml', encoding='utf-8') as file:
-        CFG = safe_load(file)  # 为列表类型
 
-    data_process(args.dataset_path, args.dataset_name,
-                 args.patch_size, args.stride, "training")
-    data_process(args.dataset_path, args.dataset_name,
-                 args.patch_size, args.stride, "test")
+    data_process(args.data_path, args.patch_size, args.stride, args.mode)

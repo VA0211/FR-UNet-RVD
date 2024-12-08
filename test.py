@@ -4,7 +4,7 @@ from bunch import Bunch
 from ruamel.yaml import safe_load
 from torch.utils.data import DataLoader
 import models
-from dataset import vessel_dataset
+from dataset import VesselDataset
 from tester import Tester
 from utils import losses
 from utils.helpers import get_instance
@@ -13,7 +13,7 @@ from utils.helpers import get_instance
 def main(data_path, weight_path, CFG, show):
     checkpoint = torch.load(weight_path)
     CFG_ck = checkpoint['config']
-    test_dataset = vessel_dataset(data_path, mode="test")
+    test_dataset = VesselDataset(data_path, mode="testing")
     test_loader = DataLoader(test_dataset, 1,
                              shuffle=False,  num_workers=16, pin_memory=True)
     model = get_instance(models, 'model', CFG)
